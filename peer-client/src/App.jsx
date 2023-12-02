@@ -37,6 +37,9 @@ function App() {
   const handleConnect = async () => {
     console.log('Pressed connect...')
     await messenger.connect()
+
+    // try using the SignalClient
+    messenger.ping()
   }
 
   const handleClose = () => {

@@ -1,8 +1,13 @@
-import PeerConnection from "./peerConnection";
+import PeerConnection from "./peerConnection"
+import SignalClient from "./signalClient"
 
 class Messenger {
   constructor(onRecvMessage, onChannelStateChange) {
     this.signaling = new BroadcastChannel("messenger")
+
+    // This should replace BroadcastChannel (pretty soon)
+    this.signalClient = new SignalClient()
+    this.signalClient.connect()
 
     // supports only 1 other peer, for now
     console.log("Creating a peerconnection")
@@ -12,6 +17,9 @@ class Messenger {
   closeSignaling = () => {
     this.signaling.close()
     this.signaling = null
+
+    this.signalClient.close()
+    this.signalClient = null
   }
 
   connect = async () => {
@@ -32,6 +40,10 @@ class Messenger {
     }
 
     this.peer.sendData(data)
+  }
+
+  ping = () => {
+    this.signalClient.sendPing()
   }
 
 }
