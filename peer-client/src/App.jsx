@@ -7,15 +7,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import Messenger from './messenger'
+import Toolbar from './Toolbar'
+import TextEditor from './TextEditor'
+import ChannelState from './ChannelState'
 
-function App() {
-  const [msg, setMsg] = useState("")
-  const [inbox, setInbox] = useState([""])
+const App = () => {
+  const [doc, setDoc] = useState("")
   const [sendChannelState, setSendChannelState] = useState("no peerconnection")
   const [recvChannelState, setRecvChannelState] = useState("no peerconnection")
 
   const handleRecv = useCallback(msg => {
-    setInbox(i => [msg, ...i])
+    setDoc(msg)
   }, [])
 
   const handleChannelStateChange = useCallback((sendChannelState, recvChannelState) => {
@@ -80,58 +82,34 @@ function App() {
   }
 
   const handleClose = () => {
+    console.log('Pressed close...')
     messenger.current.close()
   }
 
   const handleSend = () => {
-    messenger.current.sendData(msg)
-    setMsg("")
+    messenger.current.sendData(doc)
   }
 
-  const getInboxAsString = () => {
-    return inbox.join("\n\n")
-  }
-
-  const printChannelState = () => {
-    return (
-      <div>
-        <div>SendChannel: {sendChannelState}</div>
-        <div>RecvChannel: {recvChannelState}</div>
-      </div>
-    )
-  }
-
-  const placeholder = "Open two windows, connect, enter some text and press send" +
-                      "\n\nOnly one side needs to press connect"
+  const isConnected = sendChannelState === "open" || recvChannelState === "open"
 
   return (
-    <>
-      <div>
-        <button onClick={async () => await handleConnect()}>Connect</button>
-        <button onClick={() => handleClose()}>Close</button>
-        <button onClick={() => handleSend()}>Send</button>
-        <div>New message:</div>
-      </div>
-      <div>
-        <textarea
-          value={msg}
-          onChange={e => setMsg(e.target.value)}
-          rows={10}
-          cols={50}
-          placeholder={placeholder}
-        />
-      </div>
-      <div>Inbox:</div>
-      <div>
-        <textarea
-          value={getInboxAsString()}
-          rows={10}
-          cols={50}
-          readOnly
-        />
-      </div>
-      {printChannelState()}
-    </>
+    <div>
+      <Toolbar
+        isConnected={isConnected}
+        handleConnect={async () => await handleConnect()}
+        handleClose={() => handleClose()}
+        handleSend={() => handleSend()}
+      />
+      <div>New message:</div>
+      <TextEditor
+        doc={doc}
+        handleChange={e => setDoc(e.target.value)}
+      />
+      <ChannelState
+        sendChannelState={sendChannelState}
+        recvChannelState={recvChannelState}
+      />
+    </div>
   )
 }
 

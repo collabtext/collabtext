@@ -48,7 +48,9 @@ class Messenger {
   close = () => {
     if (this.peer) {
       this.peer.close()
-      this.peer = null
+
+      // Do not reset (for now), meant to be persisted
+      // this.peer = null
     }
   }
 
