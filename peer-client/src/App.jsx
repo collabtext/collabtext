@@ -4,65 +4,92 @@
  * Allows sending messages between multiple browser windows
  */
 
-import React, { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import Messenger from './messenger'
 
 function App() {
-  const [messenger, setMessenger] = useState(null)
   const [msg, setMsg] = useState("")
   const [inbox, setInbox] = useState([""])
-  const [sendChannelState, setSendChannelState] = useState("")
-  const [recvChannelState, setRecvChannelState] = useState("")
+  const [sendChannelState, setSendChannelState] = useState("no peerconnection")
+  const [recvChannelState, setRecvChannelState] = useState("no peerconnection")
 
-  // Note: Issue with BroadcastChannel init, cleanup doesn't work properly
-  // This issue is related to React's strict mode, which means that
-  // useEffect hooks will be called twice (in development)
-  // Fixed by disabling strict mode...
+  const handleRecv = useCallback(msg => {
+    setInbox(i => [msg, ...i])
+  }, [])
+
+  const handleChannelStateChange = useCallback((sendChannelState, recvChannelState) => {
+    setSendChannelState(sendChannelState)
+    setRecvChannelState(recvChannelState)
+  }, [])
+
+  // Messenger is mutable, so it cannot be stored in React's state
+  // The underlying cause is that Messenger connects to a browser API
+  // (RTCPeerConnection) which is represented by mutable objects
+  const messenger = useRef(null)
+
+  // Initialize a messenger (which also connects to a BroadcastChannel)
+  //
+  // Some of the extra complexity here is related to React's strict mode,
+  // which means that useEffect hooks will be called twice (in development).
+  // Hence, we will have two connect-close sequences (the first is redundant).
+  // Later, this will be moved to an event handler, so having the extra security
+  // against multiple invocations is a good thing.
+  //
+  // Relies on an ignore flag to cope with multiple invocations in-flight
+  // https://react.dev/reference/react/useEffect#fetching-data-with-effects
   useEffect(() => {
-    console.log("Opening a signaling channel")
-    setMessenger(new Messenger(handleRecv, handleChannelStateChange))
+    const initSignaling = async () => {
+      if (messenger.current === null) {
+        console.log("Opening a signaling channel")
+        const ms = new Messenger()
+        await ms.connectSignaling(handleRecv, handleChannelStateChange)
+
+        if (ignore) {
+          console.log("@useEffect: closing a *redundant* signaling channel")
+          ms.closeSignaling()
+        } else {
+          console.log("@useEffect: setting messenger.current")
+          messenger.current = ms
+        }
+      }
+    }
+
+    let ignore = false
+    initSignaling()
 
     return () => {
-      if (messenger) {
+      ignore = true
+
+      if (messenger.current !== null) {
         console.log("Closing the signaling channel")
-        messenger.closeSignaling()
-        setMessenger(null)
+        messenger.current.closeSignaling()
+        messenger.current = null
       } else {
         console.log("Skipping cleanup (messenger is null)")
       }
     }
-  }, [])
+  }, [handleRecv, handleChannelStateChange])
 
   const handleConnect = async () => {
     console.log('Pressed connect...')
-    await messenger.connect()
+    await messenger.current.connect()
 
     // try using the SignalClient
-    messenger.ping()
+    messenger.current.ping()
   }
 
   const handleClose = () => {
-    messenger.close()
+    messenger.current.close()
   }
 
   const handleSend = () => {
-    messenger.sendData(msg)
+    messenger.current.sendData(msg)
     setMsg("")
-  }
-
-  const handleRecv = (msg) => {
-    //setInbox(inbox.concat(msg))
-    setInbox([msg, ...inbox])
   }
 
   const getInboxAsString = () => {
     return inbox.join("\n\n")
-  }
-
-  const handleChannelStateChange = (sendChannelState, recvChannelState) => {
-    setSendChannelState(sendChannelState)
-    setRecvChannelState(recvChannelState)
   }
 
   const printChannelState = () => {

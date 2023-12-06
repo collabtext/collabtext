@@ -1,24 +1,43 @@
-import PeerConnection from "./peerConnection"
 import SignalClient from "./signalClient"
+import PeerConnection from "./peerConnection"
 
+/**
+ * Offers methods for network communication
+ * 
+ * Connects to a signaling server AND maintains direct P2P connections
+ */
 class Messenger {
-  constructor(onRecvMessage, onChannelStateChange) {
+  constructor() {
+    this.signaling = null
+    this.signalClient = null
+    this.peer = null
+  }
+
+  connectSignaling = async (onRecvMessage, onChannelStateChange) => {
+    // Hook up to a broadcast channel (local browser API)
     this.signaling = new BroadcastChannel("messenger")
 
     // This should replace BroadcastChannel (pretty soon)
     this.signalClient = new SignalClient()
-    this.signalClient.connect()
+    await this.signalClient.connect()
 
     // supports only 1 other peer, for now
-    console.log("Creating a peerconnection")
     this.peer = new PeerConnection(this.signaling, onRecvMessage, onChannelStateChange)
   }
 
   closeSignaling = () => {
-    this.signaling.close()
+    this.close()
+
+    if (this.signaling) {
+      this.signaling.close()
+    }
+
     this.signaling = null
 
-    this.signalClient.close()
+    if (this.signalClient) {
+      this.signalClient.close()
+    }
+
     this.signalClient = null
   }
 

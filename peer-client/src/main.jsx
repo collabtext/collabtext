@@ -2,10 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 
-// TODO: Disabled strict mode, because of issues with BroadcastChannel...
-
 ReactDOM.createRoot(document.getElementById('root')).render(
-  // <React.StrictMode>
+  <React.StrictMode>
     <App />
-  //</React.StrictMode>,
+  </React.StrictMode>,
 )

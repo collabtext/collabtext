@@ -11,9 +11,9 @@ class SignalClient {
     this.peers = []
   }
 
-  connect = () => {
+  connect = async () => {
     console.log("[signalClient] Trying to open a connection...")
-    this.socket = new WebSocket(
+    this.socket = await this.constructWebSocket(
       "ws://localhost:4040/socketserver",
       "protocolOne",
     )
@@ -25,6 +25,18 @@ class SignalClient {
 
     // On receipt of a message...
     this.socket.onmessage = this.onMessage
+  }
+
+  constructWebSocket = (url, protocol) => {
+    return new Promise((resolve, reject) => {
+      const socket = new WebSocket(url, protocol)
+      socket.onopen = () => {
+        resolve(socket)
+      }
+      socket.onerror = (err) => {
+        reject(err)
+      }
+    })
   }
 
   close = () => {

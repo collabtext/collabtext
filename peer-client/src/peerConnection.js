@@ -104,7 +104,6 @@ class PeerConnection {
   }
 
   handleOffer = async (offer) => {
-    console.log("@peerConnection.handleOffer")
     if (this.pc) {
       console.error("existing peerconnection")
       return;
@@ -122,11 +121,12 @@ class PeerConnection {
   }
 
   handleAnswer = async (answer) => {
-    console.log("@peerConnection.handleAnswer")
     if (!this.pc) {
         console.error("no peerconnection")
         return
       }
+
+      console.log("handling an answer")
 
       await this.pc.setRemoteDescription(answer)
   }
@@ -145,7 +145,6 @@ class PeerConnection {
   }
 
   sendData = (data) => {
-    // TODO: Why if-else ???
     if (this.sendChannel) {
       this.sendChannel.send(data)
     } else {
@@ -208,7 +207,9 @@ class PeerConnection {
       rcv = this.recvChannel.readyState
     }
 
-    this.onChannelStateChange(snd, rcv)
+    if (this.onChannelStateChange) {
+      this.onChannelStateChange(snd, rcv)
+    }
   }
 
 }
