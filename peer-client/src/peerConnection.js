@@ -150,8 +150,6 @@ class PeerConnection {
     } else {
       this.recvChannel.send(data)
     }
-
-    console.log("Sent Data: " + data);
   }
 
   receiveChannelCallback = (event) => {

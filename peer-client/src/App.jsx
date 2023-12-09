@@ -1,26 +1,60 @@
 /**
- * A simple messenger app
- * 
- * Allows sending messages between multiple browser windows
+ * A collaborative text editor
+ *
+ * Allows editing a shared text file among multiple users
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { RemoteOp, RGADoc } from "@collabtext/lib/src/crdt"
 import Messenger from './messenger'
 import Toolbar from './Toolbar'
 import TextEditor from './TextEditor'
 import ChannelState from './ChannelState'
 
 const App = () => {
-  const [doc, setDoc] = useState("")
+  // The document
+  const doc = useRef(null)
+  const [docStr, setDocStr] = useState("")
+  const [hostId, setHostId] = useState(null)
+
+  // Network status
   const [sendChannelState, setSendChannelState] = useState("no peerconnection")
   const [recvChannelState, setRecvChannelState] = useState("no peerconnection")
+  const isConnected = sendChannelState === "open" || recvChannelState === "open"
 
   const handleRecv = useCallback(msg => {
-    setDoc(msg)
+    msg = JSON.parse(msg)
+    if (msg.type === "text-editing-ops") {
+      console.log('Received text editing ops:', msg.ops)
+      const parsedOps = msg.ops.map(op => RemoteOp.fromJSON(op))
+      const changed = doc.current.applyRemoteOps(parsedOps)
+      if (changed) {
+        setDocStr(doc.current.toString())
+      }
+    }
   }, [])
 
   const handleChannelStateChange = useCallback((sendChannelState, recvChannelState) => {
+    const isConn = sendChannelState === "open" || recvChannelState === "open"
+    if (isConn) {
+      // Opened a new direct connection to a peer
+
+      // Obtain a host id
+      // TODO: Host ID should be assigned by the signaling server
+      const newHostId = Math.floor(100*Math.random())
+      setHostId(newHostId)
+
+      // Create a new local document instance
+      // ...and bring it up-to-date with the other node
+      //
+      // TODO: Sync initial states...
+      //
+      // For now, we just reset the documents so that the initial states match
+      doc.current = new RGADoc(newHostId)
+      setDocStr("")
+    }
+
     setSendChannelState(sendChannelState)
     setRecvChannelState(recvChannelState)
   }, [])
@@ -87,10 +121,15 @@ const App = () => {
   }
 
   const handleSend = () => {
-    messenger.current.sendData(doc)
+    const ops = doc.current.diffAndPatch(docStr)
+    const opsJson = ops.map(op => op.toJSON())
+    console.log('Sending text editing ops:', opsJson)
+    sendOps(opsJson)
   }
 
-  const isConnected = sendChannelState === "open" || recvChannelState === "open"
+  const sendOps = (ops) => {
+    messenger.current.send({ type: "text-editing-ops", ops: ops })
+  }
 
   return (
     <div>
@@ -102,12 +141,13 @@ const App = () => {
       />
       <div>New message:</div>
       <TextEditor
-        doc={doc}
-        handleChange={e => setDoc(e.target.value)}
+        doc={docStr}
+        handleChange={e => setDocStr(e.target.value)}
       />
       <ChannelState
         sendChannelState={sendChannelState}
         recvChannelState={recvChannelState}
+        hostId={hostId}
       />
     </div>
   )

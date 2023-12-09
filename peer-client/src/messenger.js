@@ -54,6 +54,10 @@ class Messenger {
     }
   }
 
+  send = (json) => {
+    this.sendData(JSON.stringify(json))
+  }
+
   sendData = (data) => {
     if (!this.peer) {
       console.log('cannot send (no connection)')
