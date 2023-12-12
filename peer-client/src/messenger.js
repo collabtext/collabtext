@@ -19,7 +19,17 @@ class Messenger {
 
     // This should replace BroadcastChannel (pretty soon)
     this.signalClient = new SignalClient()
-    await this.signalClient.connect()
+    await this.signalClient.connect({
+      onWelcome: (userId, peers) => {
+        console.log("Welcome: userId:", userId, "peers:", peers)
+      },
+      onJoin: (peer) => {
+        console.log("Join: peer:", peer)
+      },
+      onLeave: (peer) => {
+        console.log("Leave: peer:", peer)
+      },
+    })
 
     // supports only 1 other peer, for now
     this.peer = new PeerConnection(this.signaling, onRecvMessage, onChannelStateChange)
@@ -66,11 +76,6 @@ class Messenger {
 
     this.peer.sendData(data)
   }
-
-  ping = () => {
-    this.signalClient.sendPing()
-  }
-
 }
 
 export default Messenger

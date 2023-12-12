@@ -112,7 +112,7 @@ const App = () => {
     await messenger.current.connect()
 
     // try using the SignalClient
-    messenger.current.ping()
+    // messenger.current.ping()
   }
 
   const handleClose = () => {

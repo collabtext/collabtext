@@ -1,30 +1,53 @@
 /**
+ * Represents a peer
+ */
+export class Peer {
+  constructor(id) {
+    this.id = id
+  }
+}
+
+/**
  * Maintains a WebSocket connection to the signaling server
- * 
- * At the moment doesn't do much, just a template to be filled out with
- * the actual details
  */
 class SignalClient {
   constructor() {
     this.socket = null
     this.userId = null
     this.peers = []
+    this.handlers = {}
   }
 
-  connect = async () => {
+  connect = async (handlers) => {
+    // If a previous connection exists, do not create a new one
+    if (this.socket && this.socket.readyState === "open") {
+      console.log("Reusing a previous connection...")
+      return
+    }
+
+    // Reset
+    this.socket = null
+    this.userId = null
+    this.peers = []
+    this.handlers = {}
+
+    // Open a WebSocket connection
     console.log("[signalClient] Trying to open a connection...")
     this.socket = await this.constructWebSocket(
       "ws://localhost:4040/socketserver",
       "protocolOne",
     )
 
+    // Register event handlers
     this.socket.onerror = console.error
-
-    // On connection established...
-    this.socket.onopen = this.onOpen
-
-    // On receipt of a message...
+    this.socket.onclose = this.onClose
     this.socket.onmessage = this.onMessage
+
+    this.handlers = handlers
+
+    // Send a join message
+    console.log("[signalClient] Connection established, sending a join...")
+    this.sendJoin()
   }
 
   constructWebSocket = (url, protocol) => {
@@ -40,63 +63,92 @@ class SignalClient {
   }
 
   close = () => {
+    // Send a leave message
     console.log("[signalClient] Closing the connection...")
-    this.socket?.close()
-    this.userId = null
-    this.peers = []
+    if (this.socket) {
+      this.sendLeave()
+      this.socket.close()
+    }
   }
 
-  onOpen = () => {
-    console.log("[signalClient] Connection established...")
-
-    // Send a join message
-    // this.send({ type: "presence", action: "join" })
+  onClose = () => {
+    console.log("[signalClient] Connection closed...")
+    this.socket = null
+    this.userId = null
+    this.peers = []
+    this.handlers = {}
   }
 
   onMessage = event => {
     const msg = JSON.parse(event.data)
     switch (msg.type) {
-      case "ping":
-        console.log("[signalClient] Received a ping", msg)
-        break
       case "welcome":
-        console.log("[signalClient] Received a welcome message", msg)
         this.onWelcome(msg)
         break
       case "presence":
-        console.log("[signalClient] Received a presence update", msg)
         this.onPresence(msg)
         break
       default:
-        console.error("[signalClient] unknown message type", msg)
+        console.error("[signalClient] unknown signal:", msg)
     }
   }
 
   onWelcome = (msg) => {
-    // Probably should call an event handler passed down by a parent class
-    // That class should then create direct connections to the other peers
-    const { peers, userId } = msg
-    this.userId = userId
-    this.peers = peers
+    const { peers, id } = msg
+    this.userId = id
+    this.peers = peers.map(peer => new Peer(peer.id))
+
+    if (this.handlers.onWelcome) {
+      this.handlers.onWelcome(this.userId, this.peers)
+    }
   }
 
   onPresence = (msg) => {
-    if (msg.action === "join") {
-      // open a direct connection...
-      const { id } = msg
-      this.peers = this.peers.concat(id)
-    } else if (msg.action === "leave") {
-      // close the connection...
+    switch (msg.action) {
+      case "join": {
+        // Open a direct connection...
+        const { id } = msg
+        const peer = new Peer(id)
+        this.peers.push(peer)
+
+        if (this.handlers.onJoin) {
+          this.handlers.onJoin(peer)
+        }
+        break
+      } case "leave": {
+        // Close the connection...
+        const peer = this.peers.find(p => p.id === msg.id)
+        this.peers = this.peers.filter(p => p.id !== msg.id)
+        if (this.handlers.onLeave) {
+          this.handlers.onLeave(peer)
+        }
+        break
+      }
+      default: {
+        console.error("[signalClient] unknown action:", msg)
+      }
     }
   }
 
   send = (json) => {
+    console.log("[signalClient] sending:", json)
     this.socket.send(JSON.stringify(json))
   }
 
-  sendPing = () => {
-    console.log("[signalClient] Sending a ping to the signaling server...")
-    this.send({ type: "ping" })
+  sendJoin = () => {
+    this.send({
+      to: "server",
+      type: "presence",
+      action: "join"
+    })
+  }
+
+  sendLeave = () => {
+    this.send({
+      to: "server",
+      type: "presence",
+      action: "leave"
+    })
   }
 }
 
