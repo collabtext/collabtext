@@ -1,57 +1,62 @@
 /**
- * Simple messenger using a WebRTC datachannel
- * 
- * ADAPTED FROM AN EXAMPLE IN THE WEBRTC DOCS:
+ * A wrapper around a WebRTC datachannel
+ *
+ * Adapter from an example in the WebRTC docs:
  * Live: https://webrtc.github.io/samples/src/content/datachannel/channel/
  * Code: https://github.com/webrtc/samples/blob/gh-pages/src/content/datachannel/channel/js/main.js
- * 
+ *
  * Resources for learning WebRTC:
  * - https://web.dev/articles/webrtc-basics
  * - https://web.dev/articles/webrtc-infrastructure
  */
 class PeerConnection {
-  constructor(signaling, onRecvMessage, onChannelStateChange) {
+  constructor(userId, remoteId, sendSignal, onRecvMessage, onChannelStateChange) {
+    // Validation
+    if (!userId) {
+      throw new Error("Error: userId not given:", userId)
+    }
+
+    if (!remoteId) {
+      throw new Error("Error: remoteId not given:", remoteId)
+    }
+
+    // Attributes
+    this.userId = userId
+    this.remoteId = remoteId
+    this.sendSignal = sendSignal
+    this.onRecvMessage = onRecvMessage
+    this.onChannelStateChange = onChannelStateChange
+
+    // Connection & channel
     this.pc = null
     this.sendChannel = null
     this.recvChannel = null
-    this.signaling = signaling
-    this.signaling.onmessage = this.handleSignalingMessage
-    this.onRecvMessage = onRecvMessage
-    this.onChannelStateChange = onChannelStateChange
   }
 
-  // TODO: Handling signaling (this method) should be moved to another class
-  handleSignalingMessage = (e) => {
-    switch (e.data.type) {
+  onSignal = (msg) => {
+    const data = { ...msg, type: msg.subtype }
+    switch (msg.subtype) {
       case "offer":
-        console.log("[signal] received an offer", e.data)
-        this.handleOffer(e.data)
+        // console.log("[pc/signal] received an offer", msg)
+        this.handleOffer(data)
         break;
       case "answer":
-        console.log("[signal] received an answer", e.data)
-        this.handleAnswer(e.data)
+        // console.log("[pc/signal] received an answer", msg)
+        this.handleAnswer(data)
         break;
       case "candidate":
-        console.log("[signal] received a candidate", e.data)
-        this.handleCandidate(e.data)
+        // console.log("[pc/signal] received a candidate", msg)
+        this.handleCandidate(data)
         break;
-      // case "ready":
-      //   // A second tab joined. Can proceed to connect...
-      //   if (this.pc) {
-      //     console.log("already in call, ignoring");
-      //     return;
-      //   }
-      //   console.log("received a ready message")
-      //   break;
       case "bye":
-        console.log("[signal] received a bye message")
+        // console.log("[pc/signal] received a bye message")
         if (this.pc) {
           this.close();
           console.log("closing")
         }
         break;
       default:
-        console.log("unhandled", e);
+        console.log("[signal] unhandled", msg);
         break;
     }
   }
@@ -65,17 +70,25 @@ class PeerConnection {
     this.sendChannel.onclose = this.onSendChannelStateChange
 
     const offer = await this.pc.createOffer()
-    console.log("posting an offer...")
-    this.signaling.postMessage({ type: "offer", sdp: offer.sdp })
+    // console.log("posting an offer...")
+    this.sendSignal({
+      type: "webrtc",
+      subtype: "offer",
+      to: this.remoteId,
+      from: this.userId,
+      sdp: offer.sdp,
+    })
     await this.pc.setLocalDescription(offer)
   }
 
   createPeerConnection = () => {
     const pc = new RTCPeerConnection()
     pc.onicecandidate = e => {
-      console.log("@pc.onicecandidate")
       const message = {
-        type: "candidate",
+        type: "webrtc",
+        subtype: "candidate",
+        to: this.remoteId,
+        from: this.userId,
         candidate: null,
       }
 
@@ -85,7 +98,7 @@ class PeerConnection {
         message.sdpMLineIndex = e.candidate.sdpMLineIndex
       }
 
-      this.signaling.postMessage(message)
+      this.sendSignal(message)
     }
 
     return pc
@@ -95,12 +108,20 @@ class PeerConnection {
     if (this.pc) {
       this.pc.close()
       this.pc = null
+
+      // TODO: Would it be better to send this directly?
+      this.sendSignal({
+        type: "webrtc",
+        subtype: "bye",
+        to: this.remoteId,
+        from: this.userId,
+      })
     }
 
     this.sendChannel = null
     this.recvChannel = null
 
-    this.signaling.postMessage({ type: "bye" })
+    // TODO: Reset attributes
   }
 
   handleOffer = async (offer) => {
@@ -113,10 +134,16 @@ class PeerConnection {
     this.pc.ondatachannel = this.receiveChannelCallback
     await this.pc.setRemoteDescription(offer)
 
-    console.log('sending an answer')
+    // console.log('sending an answer')
 
     const answer = await this.pc.createAnswer()
-    this.signaling.postMessage({ type: "answer", sdp: answer.sdp })
+    this.sendSignal({
+      type: "webrtc",
+      subtype: "answer",
+      to: this.remoteId,
+      from: this.userId,
+      sdp: answer.sdp,
+    })
     await this.pc.setLocalDescription(answer)
   }
 
@@ -126,7 +153,7 @@ class PeerConnection {
         return
       }
 
-      console.log("handling an answer")
+      // console.log("handling an answer")
 
       await this.pc.setRemoteDescription(answer)
   }
@@ -144,7 +171,9 @@ class PeerConnection {
       }
   }
 
-  sendData = (data) => {
+  send = (json) => {
+    const data = JSON.stringify(json)
+
     if (this.sendChannel) {
       this.sendChannel.send(data)
     } else {
@@ -153,7 +182,6 @@ class PeerConnection {
   }
 
   receiveChannelCallback = (event) => {
-    console.log("Receive Channel Callback")
     this.recvChannel = event.channel
     this.recvChannel.onmessage = this.onReceiveChannelMessageCallback
     this.recvChannel.onopen = this.onReceiveChannelStateChange
@@ -161,18 +189,15 @@ class PeerConnection {
   }
 
   onReceiveChannelMessageCallback = (event) => {
-    console.log("Received Message [recv chan]")
-    this.onRecvMessage(event.data)
+    this.onRecvMessage(JSON.parse(event.data))
   }
 
   onSendChannelMessageCallback = (event) => {
-    console.log("Received Message [send chan]")
-    this.onRecvMessage(event.data)
+    this.onRecvMessage(JSON.parse(event.data))
   }
 
   onSendChannelStateChange = () => {
     const readyState = this.sendChannel?.readyState
-    console.log("Send channel state is: " + readyState)
     if (readyState === "open") {
       // ...
     } else {
@@ -184,7 +209,6 @@ class PeerConnection {
 
   onReceiveChannelStateChange = () => {
     const readyState = this.recvChannel?.readyState
-    console.log(`Receive channel state is: ${readyState}`)
     if (readyState === "open") {
       // ...
     } else {
@@ -195,6 +219,14 @@ class PeerConnection {
   }
 
   informChannelStateChange = () => {
+  const [snd, rcv] = this.getReadyState()
+
+    if (this.onChannelStateChange) {
+      this.onChannelStateChange(snd, rcv)
+    }
+  }
+
+  getReadyState = () => {
     let snd = "no peerconnection"
     if (this.pc && this.sendChannel) {
       snd = this.sendChannel.readyState
@@ -205,11 +237,15 @@ class PeerConnection {
       rcv = this.recvChannel.readyState
     }
 
-    if (this.onChannelStateChange) {
-      this.onChannelStateChange(snd, rcv)
-    }
+    return [snd, rcv]
   }
 
+  toJSON = () => {
+    return {
+      userId: this.userId,
+      remoteId: this.remoteId,
+    }
+  }
 }
 
 export default PeerConnection

@@ -94,7 +94,8 @@ class SignalingServer {
     } else if (msg.to === "all") {
       this.broadcast(client, msg)
     } else {
-      const client = this.find(Number.parseInt(msg.to))
+      const toId = Number.parseInt(msg.to)
+      const client = this.find(toId)
       if (!client) {
         console.error(`Error: cannot forward message (recipient unknown):`, msg)
         return
@@ -194,7 +195,7 @@ class SignalingServer {
   }
 
   find = (id) => {
-    return this.clients.find(client => client.clientId === id)
+    return this.clients.find(client => client.id === id)
   }
 
   generateId = () => {

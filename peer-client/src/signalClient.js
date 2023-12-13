@@ -5,6 +5,10 @@ export class Peer {
   constructor(id) {
     this.id = id
   }
+
+  toJSON = () => {
+    return { id: this.id }
+  }
 }
 
 /**
@@ -20,7 +24,7 @@ class SignalClient {
 
   connect = async (handlers) => {
     // If a previous connection exists, do not create a new one
-    if (this.socket && this.socket.readyState === "open") {
+    if (this.isReady()) {
       console.log("Reusing a previous connection...")
       return
     }
@@ -32,7 +36,7 @@ class SignalClient {
     this.handlers = {}
 
     // Open a WebSocket connection
-    console.log("[signalClient] Trying to open a connection...")
+    // console.log("[signalClient] Trying to open a connection...")
     this.socket = await this.constructWebSocket(
       "ws://localhost:4040/socketserver",
       "protocolOne",
@@ -46,7 +50,7 @@ class SignalClient {
     this.handlers = handlers
 
     // Send a join message
-    console.log("[signalClient] Connection established, sending a join...")
+    // console.log("[signalClient] Connection established, sending a join...")
     this.sendJoin()
   }
 
@@ -62,9 +66,13 @@ class SignalClient {
     })
   }
 
+  isReady = () => {
+    return this.socket && this.socket.readyState === WebSocket.OPEN
+  }
+
   close = () => {
     // Send a leave message
-    console.log("[signalClient] Closing the connection...")
+    // console.log("[signalClient] Closing the connection...")
     if (this.socket) {
       this.sendLeave()
       this.socket.close()
@@ -72,38 +80,41 @@ class SignalClient {
   }
 
   onClose = () => {
-    console.log("[signalClient] Connection closed...")
+    // console.log("[signalClient] Connection closed...")
     this.socket = null
     this.userId = null
     this.peers = []
     this.handlers = {}
   }
 
-  onMessage = event => {
+  onMessage = async (event) => {
     const msg = JSON.parse(event.data)
     switch (msg.type) {
       case "welcome":
-        this.onWelcome(msg)
+        await this.onWelcome(msg)
         break
       case "presence":
-        this.onPresence(msg)
+        await this.onPresence(msg)
+        break
+      case "webrtc":
+        await this.onWebRTC(msg)
         break
       default:
         console.error("[signalClient] unknown signal:", msg)
     }
   }
 
-  onWelcome = (msg) => {
+  onWelcome = async (msg) => {
     const { peers, id } = msg
     this.userId = id
     this.peers = peers.map(peer => new Peer(peer.id))
 
     if (this.handlers.onWelcome) {
-      this.handlers.onWelcome(this.userId, this.peers)
+      await this.handlers.onWelcome(this.userId, this.peers)
     }
   }
 
-  onPresence = (msg) => {
+  onPresence = async (msg) => {
     switch (msg.action) {
       case "join": {
         // Open a direct connection...
@@ -112,7 +123,7 @@ class SignalClient {
         this.peers.push(peer)
 
         if (this.handlers.onJoin) {
-          this.handlers.onJoin(peer)
+          await this.handlers.onJoin(this.userId, peer)
         }
         break
       } case "leave": {
@@ -120,7 +131,7 @@ class SignalClient {
         const peer = this.peers.find(p => p.id === msg.id)
         this.peers = this.peers.filter(p => p.id !== msg.id)
         if (this.handlers.onLeave) {
-          this.handlers.onLeave(peer)
+          await this.handlers.onLeave(peer)
         }
         break
       }
@@ -130,8 +141,14 @@ class SignalClient {
     }
   }
 
+  onWebRTC = async (msg) => {
+    if (this.handlers.onWebRTC) {
+      await this.handlers.onWebRTC(msg)
+    }
+  }
+
   send = (json) => {
-    console.log("[signalClient] sending:", json)
+    // console.log("[signalClient] sending:", json)
     this.socket.send(JSON.stringify(json))
   }
 
