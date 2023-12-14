@@ -1,21 +1,17 @@
 import PropTypes from 'prop-types'
 
-const Toolbar = ({ isConnected, handleConnect, handleClose, handleSend }) => {
+const Toolbar = ({ isConnected, handleConnect, handleClose, handleSync }) => {
   return (
     <div>
       <ConnectBtn
         isConnected={isConnected}
         handleConnect={async () => await handleConnect()}
         handleClose={() => handleClose()}
-      >
-        Connect
-      </ConnectBtn>
-      <SendBtn
+      />
+      <SyncBtn
         isConnected={isConnected}
-        handleSend={() => handleSend()}
-      >
-        Send
-      </SendBtn>
+        handleSync={() => handleSync()}
+      />
     </div>
   )
 }
@@ -24,7 +20,7 @@ Toolbar.propTypes = {
   isConnected: PropTypes.bool.isRequired,
   handleConnect: PropTypes.func.isRequired,
   handleClose: PropTypes.func.isRequired,
-  handleSend: PropTypes.func.isRequired,
+  handleSync: PropTypes.func.isRequired,
 }
 
 export default Toolbar
@@ -47,13 +43,13 @@ ConnectBtn.propTypes = {
   handleClose: PropTypes.func.isRequired,
 }
 
-export const SendBtn = ({ isConnected, handleSend }) => {
+export const SyncBtn = ({ isConnected, handleSync }) => {
   return (
-    <button disabled={!isConnected} onClick={() => handleSend()}>Send</button>
+    <button disabled={!isConnected} onClick={() => handleSync()}>Sync</button>
   )
 }
 
-SendBtn.propTypes = {
+SyncBtn.propTypes = {
   isConnected: PropTypes.bool.isRequired,
-  handleSend: PropTypes.func.isRequired,
+  handleSync: PropTypes.func.isRequired,
 }

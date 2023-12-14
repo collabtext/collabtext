@@ -34,8 +34,15 @@ const App = () => {
   // console.log("Rendering userId=", userId, "peers:", peers.map(p => p.toJSON()), "conns.current:", conns.current.map(c => c.toJSON()))
 
   const handleRecv = useCallback(msg => {
-    if (msg.type === "text-editing-ops") {
-      console.log('Received text editing ops:', msg.ops)
+    if (msg.type === "text-editing-ops" || msg.type === "text-editing-history") {
+      // Log this event
+      if (msg.type === "text-editing-ops") {
+        console.log('Received text editing ops:', msg.ops)
+      } else {
+        console.log('Received text editing history:', msg.ops)
+      }
+
+      // Apply received ops
       const parsedOps = msg.ops.map(op => RemoteOp.fromJSON(op))
       const changed = doc.current.applyRemoteOps(parsedOps)
       if (changed) {
@@ -45,26 +52,32 @@ const App = () => {
   }, [])
 
   const handleChannelStateChange = useCallback((peer, sendChannelState, recvChannelState) => {
-    const isConn = sendChannelState === "open" || recvChannelState === "open"
-    if (isConn) {
+    const isOpen = sendChannelState === "open" || recvChannelState === "open"
+    if (isOpen) {
       // Opened a new direct connection to a peer
 
       //
       // TODO: Sync initial states...
       //
-      // doc.current = new RGADoc(userId)
-      // setDocStr("")
-    } else {
-      // An existing connection closed
+      // Version 1: Send the entire local history
+      // (the recipient ignores operations he/she already has)
+      const conn = conns.current.find(c => c.remoteId === peer.id)
+      const ops = doc.current
+        .getHistory()
+        .map(op => op.toJSON())
+      conn.send({
+        type: "text-editing-history",
+        ops: ops
+      })
     }
 
     // A trick... force a rerendering
     setRenderCounter(count => count + 1)
   }, [])
 
-  // TODO: Close connections on exit
-  // // Close all connections on exit
   // useEffect(() => {
+  //   // TODO: Close connections on exit
+  //   // Close all connections on exit
   //   return () => {
   //     if (signalClient.current !== null) {
   //       console.log("Exiting --> closing the signaling channel")
@@ -74,9 +87,10 @@ const App = () => {
   // }, [])
 
   const connectSignaling = async (onRecvMessage, onChannelStateChange) => {
-    // Connect to a signaling server
     signalClient.current = new SignalClient()
-    await signalClient.current.connect({
+
+    // Event handlers
+    const handlers = {
       onWelcome: async (id, peerList) => {
         console.log("Welcome: userId:", id, "peers:", peerList)
 
@@ -110,11 +124,18 @@ const App = () => {
         })
         await Promise.all(promises)
 
-        //
-        // TODO: DO INITIAL SYNCS WITH THE OTHER CLIENTS!
-        //
-        doc.current = new RGADoc(id)
-        setDocStr("")
+        // Create a new document, if one doesn't exist
+        if (!doc.current) {
+          doc.current = new RGADoc(id)
+        }
+
+        // Apply changes made since the last connection
+        // These will be sent to other peers shortly,
+        // once individual channels open
+        doc.current.diffAndPatch(docStr)
+
+        // Note: syncing is done on channel open
+        // ...at handleChannelStateChange
       },
       onJoin: async (localId, peer) => {
         console.log("Join: peer:", peer)
@@ -158,7 +179,10 @@ const App = () => {
           console.error(`Received a signal from an unknown host ${fromId}:`, msg)
         }
       },
-    })
+    }
+
+    // Connect to a signaling server
+    await signalClient.current.connect(handlers)
   }
 
   const close = () => {
@@ -173,10 +197,8 @@ const App = () => {
   }
 
   const closePeerConnections = () => {
-    for (let i = 0; i < peers.length; i++) {
-      const peer = peers[i]
-      const conn = conns.current[i]
-
+    for (const peer of peers) {
+      const conn = conns.current.find(c => c.remoteId === peer.id)
       if (!conn) {
         continue
       }
@@ -192,8 +214,7 @@ const App = () => {
   const broadcast = (json) => {
     for (const peer of peers) {
       const conn = conns.current.find(c => c.remoteId === peer.id)
-
-      if (!conn) {
+      if (!conn || !conn.isReady()) {
         console.log(`cannot send to ${peer.id} (no connection)`)
         continue
       }
@@ -212,7 +233,7 @@ const App = () => {
     close()
   }
 
-  const handleSend = () => {
+  const handleSync = () => {
     // Compute a list of changes
     const ops = doc.current
       .diffAndPatch(docStr)
@@ -232,7 +253,7 @@ const App = () => {
         isConnected={!!signalClient.current && signalClient.current.isReady()}
         handleConnect={async () => await handleConnect()}
         handleClose={() => handleClose()}
-        handleSend={() => handleSend()}
+        handleSync={() => handleSync()}
       />
       <div>Document:</div>
       <TextEditor

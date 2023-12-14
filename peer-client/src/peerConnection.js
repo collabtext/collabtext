@@ -1,4 +1,15 @@
 /**
+ * STUN/TURN server configurartion
+ */
+const iceConfiguration = {
+  iceServers: [
+    {
+      urls: 'stun:stun.l.google.com:19302',
+    }
+  ]
+}
+
+/**
  * A wrapper around a WebRTC datachannel
  *
  * Adapter from an example in the WebRTC docs:
@@ -82,7 +93,7 @@ class PeerConnection {
   }
 
   createPeerConnection = () => {
-    const pc = new RTCPeerConnection()
+    const pc = new RTCPeerConnection(iceConfiguration)
     pc.onicecandidate = e => {
       const message = {
         type: "webrtc",
@@ -121,7 +132,8 @@ class PeerConnection {
     this.sendChannel = null
     this.recvChannel = null
 
-    // TODO: Reset attributes
+    // Note: We do not reset other attributes
+    // (we may want to reconnect later with the same attributes)
   }
 
   handleOffer = async (offer) => {
@@ -238,6 +250,11 @@ class PeerConnection {
     }
 
     return [snd, rcv]
+  }
+
+  isReady = () => {
+    const readyState = this.getReadyState()
+    return readyState[0] === "open" || readyState[1] == "open"
   }
 
   toJSON = () => {
