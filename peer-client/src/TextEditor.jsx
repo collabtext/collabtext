@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types'
 
-const placeholder = "Open two windows, connect, enter some text and press send" +
-                    "\n\nOnly one side needs to press connect"
+const placeholder = "Connect and enter some text" +
+                    "\n\nChanges are synchronized to other peers"
 
-const TextEditor = ({ docStr, handleChange }) => {
+const TextEditor = ({ docStr, handleChange, isDisabled }) => {
   return (
     <textarea
       value={docStr}
@@ -11,6 +11,7 @@ const TextEditor = ({ docStr, handleChange }) => {
       rows={10}
       cols={50}
       placeholder={placeholder}
+      disabled={isDisabled}
     />
   )
 }
@@ -18,6 +19,7 @@ const TextEditor = ({ docStr, handleChange }) => {
 TextEditor.propTypes = {
   docStr: PropTypes.string.isRequired,
   handleChange: PropTypes.func.isRequired,
+  isDisabled: PropTypes.bool.isRequired,
 }
 
 export default TextEditor

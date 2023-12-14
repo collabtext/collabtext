@@ -7,13 +7,27 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { RemoteOp, RGADoc } from "@collabtext/lib/src/crdt"
-// import Messenger from './messenger'
 import SignalClient from "./signalClient"
 import PeerConnection from "./peerConnection"
 
-import Toolbar from './Toolbar'
-import TextEditor from './TextEditor'
-import ChannelStates from './ChannelStates'
+import Toolbar from "./Toolbar"
+import TextEditor from "./TextEditor"
+import ChannelStates from "./ChannelStates"
+
+/**
+ * URL of the WebSocket server
+ */
+const WS_URL = "ws://localhost:4040/ws"
+
+/**
+ * Whether the user can edit even while offline
+ */
+const ENABLE_OFFLINE_EDITING = true
+
+/**
+ * Whether to sync after each key press, or only when a button is pushed
+ */
+const ENABLE_LIVE_EDITING = true
 
 const App = () => {
   // The document
@@ -86,7 +100,7 @@ const App = () => {
   //   }
   // }, [])
 
-  const connectSignaling = async (onRecvMessage, onChannelStateChange) => {
+  const connectSignaling = async (url, onRecvMessage, onChannelStateChange) => {
     signalClient.current = new SignalClient()
 
     // Event handlers
@@ -182,7 +196,7 @@ const App = () => {
     }
 
     // Connect to a signaling server
-    await signalClient.current.connect(handlers)
+    await signalClient.current.connect(url, handlers)
   }
 
   const close = () => {
@@ -225,7 +239,7 @@ const App = () => {
 
   const handleConnect = async () => {
     console.log('Pressed connect...')
-    await connectSignaling(handleRecv, handleChannelStateChange)
+    await connectSignaling(WS_URL, handleRecv, handleChannelStateChange)
   }
 
   const handleClose = () => {
@@ -233,10 +247,16 @@ const App = () => {
     close()
   }
 
-  const handleSync = () => {
+  const handleSync = (newDocStr) => {
+    if (!doc.current) {
+      // Skip this update
+      // Waiting for initialization
+      return
+    }
+
     // Compute a list of changes
     const ops = doc.current
-      .diffAndPatch(docStr)
+      .diffAndPatch(newDocStr)
       .map(op => op.toJSON())
 
     // Broadcast
@@ -247,18 +267,31 @@ const App = () => {
     })
   }
 
+  const handleChange = (e) => {
+    const newDocStr = e.target.value
+    setDocStr(newDocStr)
+
+    if (ENABLE_LIVE_EDITING) {
+      handleSync(newDocStr)
+    }
+  }
+
+  const isConnected = !!signalClient.current && signalClient.current.isReady()
+  const canEdit = ENABLE_OFFLINE_EDITING || isConnected
+
   return (
     <div>
       <Toolbar
-        isConnected={!!signalClient.current && signalClient.current.isReady()}
+        isConnected={isConnected}
         handleConnect={async () => await handleConnect()}
         handleClose={() => handleClose()}
-        handleSync={() => handleSync()}
+        handleSync={() => handleSync(docStr)}
       />
       <div>Document:</div>
       <TextEditor
         docStr={docStr}
-        handleChange={e => setDocStr(e.target.value)}
+        handleChange={handleChange}
+        isDisabled={!canEdit}
       />
       <ChannelStates
         userId={userId}

@@ -22,7 +22,7 @@ class SignalClient {
     this.handlers = {}
   }
 
-  connect = async (handlers) => {
+  connect = async (url, handlers) => {
     // If a previous connection exists, do not create a new one
     if (this.isReady()) {
       console.log("Reusing a previous connection...")
@@ -37,10 +37,7 @@ class SignalClient {
 
     // Open a WebSocket connection
     // console.log("[signalClient] Trying to open a connection...")
-    this.socket = await this.constructWebSocket(
-      "ws://localhost:4040/socketserver",
-      "protocolOne",
-    )
+    this.socket = await this.constructWebSocket(url, "protocolOne")
 
     // Register event handlers
     this.socket.onerror = console.error
@@ -67,7 +64,7 @@ class SignalClient {
   }
 
   isReady = () => {
-    return this.socket && this.socket.readyState === WebSocket.OPEN
+    return !!this.socket && this.socket.readyState === WebSocket.OPEN
   }
 
   close = () => {
