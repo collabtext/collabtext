@@ -70,8 +70,7 @@ const App = () => {
     if (isOpen) {
       // Opened a new direct connection to a peer
 
-      //
-      // TODO: Sync initial states...
+      // TODO: Sync initial states (properly)...
       //
       // Version 1: Send the entire local history
       // (the recipient ignores operations he/she already has)
@@ -111,6 +110,12 @@ const App = () => {
         // Save the id
         setUserId(id)
 
+        // Create a new document, if one doesn't exist
+        if (!doc.current) {
+          doc.current = new RGADoc(id)
+          doc.current.diffAndPatch(docStr)
+        }
+
         // Prepare to connect
         const connList = []
         peerList.forEach(peer => {
@@ -137,16 +142,6 @@ const App = () => {
           promises.push(conn.connect())
         })
         await Promise.all(promises)
-
-        // Create a new document, if one doesn't exist
-        if (!doc.current) {
-          doc.current = new RGADoc(id)
-        }
-
-        // Apply changes made since the last connection
-        // These will be sent to other peers shortly,
-        // once individual channels open
-        doc.current.diffAndPatch(docStr)
 
         // Note: syncing is done on channel open
         // ...at handleChannelStateChange
