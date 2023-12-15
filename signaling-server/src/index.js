@@ -6,7 +6,9 @@ const { WebSocketServer } = require("ws")
 
 const { SignalingServer } = require("./signalingServer")
 
-const wss = new WebSocketServer({ port: 4040 })
+const host = process.env.HOST || '127.0.0.1'
+
+const wss = new WebSocketServer({ port: 4040, host: host })
 
 const signalingServer = new SignalingServer(wss)
 

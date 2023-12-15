@@ -17,7 +17,7 @@ import ChannelStates from "./ChannelStates"
 /**
  * URL of the WebSocket server
  */
-const WS_URL = "ws://localhost:4040/ws"
+const WS_URL = "ws://10.64.163.217:4040/ws"
 
 /**
  * Whether the user can edit even while offline
