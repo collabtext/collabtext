@@ -275,24 +275,34 @@ const App = () => {
   const canEdit = ENABLE_OFFLINE_EDITING || isConnected
 
   return (
-    <div>
-      <Toolbar
-        isConnected={isConnected}
-        handleConnect={async () => await handleConnect()}
-        handleClose={() => handleClose()}
-        handleSync={() => handleSync(docStr)}
-      />
-      <div>Document:</div>
-      <TextEditor
-        docStr={docStr}
-        handleChange={handleChange}
-        isDisabled={!canEdit}
-      />
-      <ChannelStates
-        userId={userId}
-        conns={conns.current}
-      />
+    <div className="flex-col border-8 border-double border-grey-400 bg-slate-700">
+    <div className='flex flex-row justify-around border-2 border-solid m-2'>
+    <h1 class="text-4xl text-lime-200 font-bold italic m-2">CollabText</h1>
     </div>
+  <div className='flex flex-row'>
+  <div className="flex-grow m-4">
+    <TextEditor
+      docStr={docStr}
+      handleChange={handleChange}
+      isDisabled={!canEdit}
+    />
+  </div>
+  <div className=" m-4">
+  <div className='mt-2'><Toolbar
+      isConnected={isConnected}
+      handleConnect={async () => await handleConnect()}
+      handleClose={() => handleClose()}
+      handleSync={() => handleSync(docStr)}
+    />
+    </div>
+    <ChannelStates
+      userId={userId}
+      conns={conns.current}
+    />
+  </div>
+  </div>
+</div>
+
   )
 }
 

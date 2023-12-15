@@ -6,13 +6,16 @@ const placeholder = "Connect and enter some text" +
 const TextEditor = ({ docStr, handleChange, isDisabled }) => {
   return (
     <textarea
-      value={docStr}
-      onChange={handleChange}
-      rows={10}
-      cols={50}
-      placeholder={placeholder}
-      disabled={isDisabled}
-    />
+  value={docStr}
+  onChange={handleChange}
+  rows={10}
+  cols={50}
+  placeholder={placeholder}
+  disabled={isDisabled}
+  className="w-full h-fit italic font-semibold font-medium text-lg text-zinc-300	
+  text-slate-200 h-32 p-2 bg-slate-900 border-8 border-solid rounded focus:outline-none border-white"
+/>
+
   )
 }
 

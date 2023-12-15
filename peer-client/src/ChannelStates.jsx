@@ -3,11 +3,19 @@ import PropTypes from 'prop-types'
 const ChannelState = ({ sendChannelState, recvChannelState, remoteId, reconnect }) => {
   return (
     <div>
-      <div>Peer ID: {remoteId ?? "none"}</div>
-      <div>SendChannel: {sendChannelState}</div>
-      <div>RecvChannel: {recvChannelState}</div>
-      <div><button onClick={reconnect}>Reconnect</button></div>
+    <div className="border p-2 border-gray-600 rounded mb-2 bg-slate-200">
+      Peer ID: {remoteId ?? "none"}
     </div>
+    <div className="border p-2 border-gray-600 rounded mb-2 bg-slate-200">
+      SendChannel: {sendChannelState}
+    </div>
+    <div className="border p-2 border-gray-600 rounded mb-2 bg-slate-200">
+      RecvChannel: {recvChannelState}
+    </div>
+    <button onClick={reconnect} className='bg-blue-500 hover:bg-blue-700 rounded text-white font-bold py-2 px-4'>Reconnect</button>
+    
+  </div>
+  
   )
 }
 
@@ -31,8 +39,7 @@ const ChannelStates = ({ userId, conns }) => {
 
   return (
     <div>
-      <div>Your ID: {userId ?? "none"}</div>
-      <br />
+      <div className='border p-2 border-gray-600 rounded mb-2 bg-slate-200 mt-2'>Your ID: {userId ?? "none"}</div>
       <div>
         {conns.map(conn => (
           <div key={conn.remoteId}>
@@ -42,7 +49,6 @@ const ChannelStates = ({ userId, conns }) => {
               remoteId={conn.remoteId}
               reconnect={reconnect(conn)}
             />
-            <br />
           </div>
         ))}
       </div>
