@@ -1,5 +1,12 @@
 # From: https://github.com/github/gitignore/blob/main/Node.gitignore
 
+dist
+dist-static
+
+Dockerfile
+.dockerignore
+fly.toml
+
 # Logs
 logs
 *.log

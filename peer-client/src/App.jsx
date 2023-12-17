@@ -15,9 +15,9 @@ import TextEditor from "./TextEditor"
 import ChannelStates from "./ChannelStates"
 
 /**
- * URL of the WebSocket server
+ * URL of the WebSocket server (set at .env)
  */
-const WS_URL = "ws://localhost:4040/ws"
+const WS_URL = import.meta.env.VITE_WS_URL
 
 /**
  * Whether the user can edit even while offline
@@ -25,9 +25,9 @@ const WS_URL = "ws://localhost:4040/ws"
 const ENABLE_OFFLINE_EDITING = true
 
 /**
- * Whether to sync after each key press, or only when a button is pushed
+ * Whether to sync after every keystroke, or only when a button is pushed
  */
-const ENABLE_LIVE_EDITING = true
+const ENABLE_REALTIME_EDITING = true
 
 const App = () => {
   // The document
@@ -105,7 +105,7 @@ const App = () => {
     // Event handlers
     const handlers = {
       onWelcome: async (id, peerList) => {
-        console.log("Welcome: userId:", id, "peers:", peerList)
+        console.log("Welcome: userId:", id, "peers:", peerList.map(p => p.toJSON()))
 
         // Save the id
         setUserId(id)
@@ -188,9 +188,16 @@ const App = () => {
           console.error(`Received a signal from an unknown host ${fromId}:`, msg)
         }
       },
+      onSignalClose: async () => {
+        closePeerConnections()
+
+        signalClient.current = null
+        setUserId(null)
+      },
     }
 
     // Connect to a signaling server
+    console.log(`Connecting to ${url}`)
     await signalClient.current.connect(url, handlers)
   }
 
@@ -206,13 +213,12 @@ const App = () => {
   }
 
   const closePeerConnections = () => {
-    for (const peer of peers) {
-      const conn = conns.current.find(c => c.remoteId === peer.id)
+    for (const conn of conns.current) {
       if (!conn) {
         continue
       }
 
-      console.log(`closing connection to ${peer.id}...`)
+      console.log(`closing connection to ${conn.remoteId}...`)
       conn.close()
     }
 
@@ -266,7 +272,7 @@ const App = () => {
     const newDocStr = e.target.value
     setDocStr(newDocStr)
 
-    if (ENABLE_LIVE_EDITING) {
+    if (ENABLE_REALTIME_EDITING) {
       handleSync(newDocStr)
     }
   }

@@ -78,6 +78,10 @@ class SignalClient {
 
   onClose = () => {
     // console.log("[signalClient] Connection closed...")
+    if (this.handlers.onSignalClose) {
+      this.handlers.onSignalClose()
+    }
+
     this.socket = null
     this.userId = null
     this.peers = []
