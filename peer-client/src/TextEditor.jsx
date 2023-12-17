@@ -13,6 +13,7 @@ const TextEditor = ({ docStr, handleChange, isDisabled, textArea }) => {
       placeholder={placeholder}
       disabled={isDisabled}
       ref={textArea}
+      className="w-full h-fit italic font-semibold font-medium text-lg text-zinc-300 text-slate-200 h-32 p-2 bg-slate-900 border-8 border-solid rounded focus:outline-none border-white"
     />
   )
 }

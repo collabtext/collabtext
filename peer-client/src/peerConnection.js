@@ -48,7 +48,7 @@ class PeerConnection {
     const data = { ...msg, type: msg.subtype }
     switch (msg.subtype) {
       case "offer":
-        // console.log("[pc/signal] received an offer", msg)
+        // console.log("[pc/signal] received an offer", msg);
         this.handleOffer(data)
         break;
       case "answer":
