@@ -4,7 +4,7 @@
  * Allows editing a shared text file among multiple users
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { RemoteOp, RGADoc } from "@collabtext/lib/src/crdt"
 import SignalClient from "./signalClient"
@@ -29,6 +29,32 @@ const ENABLE_OFFLINE_EDITING = true
  */
 const ENABLE_REALTIME_EDITING = true
 
+/**
+ * Used for preserving cursor position after controlled updates
+ *
+ * Controlled updates are used to apply received remote operations.
+ * Their side-effect is that the cursor jumps at the end of the document.
+ * To prevent that, the cursor position must be updated manually.
+ *
+ * See the handleRecv callback.
+ *
+ * Ref: https://github.com/Atri-Labs/til/blob/main/react/controlled-input.md
+ */
+const useSetCursor = () => {
+  const cursorFn = useRef(null)
+
+  useLayoutEffect(() => {
+    if (cursorFn.current !== null) {
+      cursorFn.current()
+      cursorFn.current = null
+    }
+  })
+
+  return (fn) => {
+    cursorFn.current = fn
+  }
+}
+
 const App = () => {
   // The document
   const doc = useRef(null)
@@ -43,6 +69,10 @@ const App = () => {
   const [peers, setPeers] = useState([])
   const conns = useRef([])
 
+  // Used for preserving cursor position
+  const setCursor = useSetCursor()
+  const textArea = useRef(null)
+
   const [, setRenderCounter] = useState(0)
 
   // console.log("Rendering userId=", userId, "peers:", peers.map(p => p.toJSON()), "conns.current:", conns.current.map(c => c.toJSON()))
@@ -56,14 +86,28 @@ const App = () => {
         console.log('Received text editing history:', msg.ops)
       }
 
+      // Save the current cursor position
+      const currIndex = textArea.current.selectionStart
+      const currId = doc.current.getIdOf(currIndex)
+
       // Apply received ops
       const parsedOps = msg.ops.map(op => RemoteOp.fromJSON(op))
       const changed = doc.current.applyRemoteOps(parsedOps)
       if (changed) {
+        // Update the document
         setDocStr(doc.current.toString())
+
+        if (currId) {
+          setCursor(() => {
+            // Compute and set the new cursor position
+            const newIndex = doc.current.getIndexOf(currId)
+            textArea.current.selectionStart = newIndex
+            textArea.current.selectionEnd = newIndex
+          })
+        }
       }
     }
-  }, [])
+  }, [setCursor])
 
   const handleChannelStateChange = useCallback((peer, sendChannelState, recvChannelState) => {
     const isOpen = sendChannelState === "open" || recvChannelState === "open"
@@ -313,6 +357,7 @@ const App = () => {
         docStr={docStr}
         handleChange={handleChange}
         isDisabled={!canEdit}
+        textArea={textArea}
       />
       <ChannelStates
         userId={userId}
