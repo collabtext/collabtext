@@ -78,9 +78,11 @@ const App = () => {
       const ops = doc.current
         .getHistory()
         .map(op => op.toJSON())
-      conn.send({
-        type: "text-editing-history",
-        ops: ops
+      sendFragments(ops, (fragment) => {
+        conn.send({
+          type: "text-editing-history",
+          ops: fragment
+        })
       })
     }
 
@@ -248,6 +250,22 @@ const App = () => {
     close()
   }
 
+  const sendFragments = (ops, sendFn) => {
+    // Fixes an issue with sending too many ops at once
+    // Splits a list of ops into smaller fragments (1000 ops each)
+    // Does not consider buffer size
+    const FRAGMENT_OPS = 1000
+    let start = 0
+    while (start < ops.length) {
+      const end = Math.min(start + FRAGMENT_OPS, ops.length)
+      const slice = ops.slice(start, end)
+
+      sendFn(slice)
+
+      start = end
+    }
+  }
+
   const handleSync = (newDocStr) => {
     if (!doc.current) {
       // Skip this update
@@ -261,10 +279,12 @@ const App = () => {
       .map(op => op.toJSON())
 
     // Broadcast
-    console.log('Sending text editing ops:', ops)
-    broadcast({
-      type: "text-editing-ops",
-      ops: ops
+    sendFragments(ops, (fragment) => {
+      console.log('Sending text editing ops:', fragment)
+      broadcast({
+        type: "text-editing-ops",
+        ops: fragment
+      })
     })
   }
 
