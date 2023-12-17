@@ -252,6 +252,15 @@ class PeerConnection {
     return [snd, rcv]
   }
 
+  getReadyStateCombined = () => {
+    const [snd, rcv] = this.getReadyState()
+    if (this.sendChannel) {
+      return snd
+    } else {
+      return rcv
+    }
+  }
+
   isReady = () => {
     const readyState = this.getReadyState()
     return readyState[0] === "open" || readyState[1] == "open"

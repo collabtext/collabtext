@@ -4,7 +4,7 @@
  * Allows editing a shared text file among multiple users
  */
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from "react"
 
 import { RemoteOp, RGADoc } from "@collabtext/lib/src/crdt"
 import SignalClient from "./signalClient"
@@ -81,9 +81,9 @@ const App = () => {
     if (msg.type === "text-editing-ops" || msg.type === "text-editing-history") {
       // Log this event
       if (msg.type === "text-editing-ops") {
-        console.log('Received text editing ops:', msg.ops)
+        console.log("Received text editing ops:", msg.ops)
       } else {
-        console.log('Received text editing history:', msg.ops)
+        console.log("Received text editing history:", msg.ops)
       }
 
       // Save the current cursor position
@@ -285,12 +285,12 @@ const App = () => {
   }
 
   const handleConnect = async () => {
-    console.log('Pressed connect...')
+    console.log("Pressed connect...")
     await connectSignaling(WS_URL, handleRecv, handleChannelStateChange)
   }
 
   const handleClose = () => {
-    console.log('Pressed close...')
+    console.log("Pressed close...")
     close()
   }
 
@@ -324,7 +324,7 @@ const App = () => {
 
     // Broadcast
     sendFragments(ops, (fragment) => {
-      console.log('Sending text editing ops:', fragment)
+      console.log("Sending text editing ops:", fragment)
       broadcast({
         type: "text-editing-ops",
         ops: fragment
@@ -346,10 +346,10 @@ const App = () => {
 
   return (
     <div className="flex-col border-8 border-double border-grey-400 bg-slate-700">
-      <div className='flex flex-row justify-around border-2 border-solid m-2'>
+      <div className="flex flex-row justify-around border-2 border-solid m-2">
         <h1 className="text-4xl text-lime-200 font-bold italic m-2">CollabText</h1>
       </div>
-      <div className='flex flex-row'>
+      <div className="flex flex-row">
         <div className="flex-grow m-4">
           <TextEditor
             docStr={docStr}
@@ -359,7 +359,7 @@ const App = () => {
           />
         </div>
         <div className=" m-4">
-          <div className='mt-2'>
+          <div className="mt-2">
             <Toolbar
               isConnected={isConnected}
               handleConnect={async () => await handleConnect()}

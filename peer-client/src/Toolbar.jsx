@@ -1,8 +1,8 @@
-import PropTypes from 'prop-types'
+import PropTypes from "prop-types"
 
 const Toolbar = ({ isConnected, handleConnect, handleClose, handleSync }) => {
   return (
-    <div className='space-x-2'>
+    <div className="space-x-2">
       <ConnectBtn
         isConnected={isConnected}
         handleConnect={async () => await handleConnect()}
